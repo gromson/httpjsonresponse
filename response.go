@@ -83,6 +83,16 @@ func NewProblemResponse(title string, detail interface{}) *Problem {
 	}
 }
 
+func NewNotFoundResponse(detail string) *Problem {
+	return &Problem{
+		Type:   "https://tools.ietf.org/html/rfc7231#section-6.5.4",
+		Title:  "Not Found",
+		Status: http.StatusNotFound,
+		Detail: detail,
+		Logger: log.New(),
+	}
+}
+
 func NewUnauthorizedResponse(detail string) *Problem {
 	return &Problem{
 		Type:   "https://tools.ietf.org/html/rfc7235#section-3.1",
