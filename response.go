@@ -46,20 +46,6 @@ type Problem struct {
 	Logger Logger      `json:"-"`
 }
 
-func NewProblemResponse(title string, detail interface{}) *Problem {
-	if errs, ok := detail.([]error); ok {
-		detail = errorSliceToStringSlice(errs)
-	}
-
-	return &Problem{
-		Type:   "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-		Title:  title,
-		Status: http.StatusBadRequest,
-		Detail: detail,
-		Logger: log.New(),
-	}
-}
-
 func (r *Problem) Respond(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/Problem+json; charset=utf-8")
 
@@ -83,6 +69,20 @@ func (r *Problem) Respond(w http.ResponseWriter) {
 	}
 }
 
+func NewProblemResponse(title string, detail interface{}) *Problem {
+	if errs, ok := detail.([]error); ok {
+		detail = errorSliceToStringSlice(errs)
+	}
+
+	return &Problem{
+		Type:   "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+		Title:  title,
+		Status: http.StatusBadRequest,
+		Detail: detail,
+		Logger: log.New(),
+	}
+}
+
 func NewUnauthorizedResponse(detail string) *Problem {
 	return &Problem{
 		Type:   "https://tools.ietf.org/html/rfc7235#section-3.1",
@@ -99,6 +99,16 @@ func NewForbiddenResponse(detail string) *Problem {
 		Title:  "Forbidden",
 		Status: http.StatusForbidden,
 		Detail: detail,
+		Logger: log.New(),
+	}
+}
+
+func NewInternalError() *Problem {
+	return &Problem{
+		Type:   "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+		Title:  "Internal Server Error",
+		Status: http.StatusInternalServerError,
+		Detail: nil,
 		Logger: log.New(),
 	}
 }
