@@ -8,13 +8,13 @@ import (
 
 type JsonSuccess struct {
 	Result interface{}
-	Logger Logger
+	Log    Log
 }
 
 func NewSuccessResponse(result interface{}) JsonSuccess {
 	return JsonSuccess{
 		Result: result,
-		Logger: log.New(),
+		Log:    logError,
 	}
 }
 
@@ -23,7 +23,7 @@ func (r JsonSuccess) Respond(w http.ResponseWriter) {
 
 	serialized, err := json.Marshal(r.Result)
 	if err != nil {
-		logError(r.Logger, "error while trying to serialize a response", err, r.Result)
+		r.Log("error while trying to serialize a response", err, r.Result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -32,7 +32,7 @@ func (r JsonSuccess) Respond(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusOK)
 
 	if _, err := w.Write(serialized); err != nil {
-		logError(r.Logger, "error while trying to write json response body", err, string(serialized))
+		r.Log("error while trying to write json response body", err, string(serialized))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -43,15 +43,15 @@ type Problem struct {
 	Title  string      `json:"title"`
 	Status int         `json:"status"`
 	Detail interface{} `json:"details"`
-	Logger Logger      `json:"-"`
+	Log    Log         `json:"-"`
 }
 
 func (r *Problem) Respond(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/Problem+json; charset=utf-8")
+	w.Header().Set("Content-Type", "application/problem+json; charset=utf-8")
 
 	serialized, err := json.Marshal(r)
 	if err != nil {
-		logError(r.Logger, "error while trying to serialize a Problem response", err, r)
+		r.Log("error while trying to serialize a Problem response", err, r)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -59,11 +59,7 @@ func (r *Problem) Respond(w http.ResponseWriter) {
 	w.WriteHeader(r.Status)
 
 	if _, err := w.Write(serialized); err != nil {
-		logError(r.Logger, "error while trying to write Problem response body", err, r)
-		log.WithFields(log.Fields{
-			"title": "error while trying to write Problem response body",
-			"data":  string(serialized),
-		}).Error(err)
+		r.Log("error while trying to write Problem response body", err, string(serialized))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -79,7 +75,7 @@ func NewProblemResponse(title string, detail interface{}) *Problem {
 		Title:  title,
 		Status: http.StatusBadRequest,
 		Detail: detail,
-		Logger: log.New(),
+		Log:    logError,
 	}
 }
 
@@ -89,7 +85,7 @@ func NewNotFoundResponse(detail string) *Problem {
 		Title:  "Not Found",
 		Status: http.StatusNotFound,
 		Detail: detail,
-		Logger: log.New(),
+		Log:    logError,
 	}
 }
 
@@ -99,7 +95,7 @@ func NewUnauthorizedResponse(detail string) *Problem {
 		Title:  "Unauthorized",
 		Status: http.StatusUnauthorized,
 		Detail: detail,
-		Logger: log.New(),
+		Log:    logError,
 	}
 }
 
@@ -109,7 +105,7 @@ func NewForbiddenResponse(detail string) *Problem {
 		Title:  "Forbidden",
 		Status: http.StatusForbidden,
 		Detail: detail,
-		Logger: log.New(),
+		Log:    logError,
 	}
 }
 
@@ -119,7 +115,7 @@ func NewInternalError() *Problem {
 		Title:  "Internal Server Error",
 		Status: http.StatusInternalServerError,
 		Detail: nil,
-		Logger: log.New(),
+		Log:    logError,
 	}
 }
 
@@ -133,15 +129,8 @@ func errorSliceToStringSlice(data []error) []string {
 	return ss
 }
 
-func logError(logger Logger, title string, err error, additional interface{}) {
-	l, ok := logger.(log.FieldLogger)
-	if !ok {
-		logger.Printf("%s: %s, data: %v", title, err.Error(), additional)
-		return
-	}
+type Log func(title string, err error, additional interface{})
 
-	l.WithFields(log.Fields{
-		"title": title,
-		"data":  additional,
-	}).Error(err)
+func logError(title string, err error, additional interface{}) {
+	log.WithError(err).WithField("additional", additional).Error(title)
 }
