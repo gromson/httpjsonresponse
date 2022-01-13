@@ -1,10 +1,14 @@
 package http_json_response
 
 import (
+	"bytes"
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
+
+var jsonNull = []byte("null")
 
 type JsonSuccess struct {
 	Result interface{}
@@ -30,6 +34,10 @@ func (r JsonSuccess) Respond(w http.ResponseWriter) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+
+	if bytes.Equal(serialized, jsonNull) {
+		return
+	}
 
 	if _, err := w.Write(serialized); err != nil {
 		r.Log("error while trying to write json response body", err, string(serialized))
