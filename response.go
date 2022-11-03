@@ -11,29 +11,23 @@ import (
 var jsonNull = []byte("null")
 
 type JsonSuccess struct {
-	Result interface{}
+	Status int
+	Data   interface{}
 	Log    Log
 }
 
-func NewSuccessResponse(result interface{}) JsonSuccess {
-	return JsonSuccess{
-		Result: result,
-		Log:    logError,
-	}
-}
-
-func (r JsonSuccess) Respond(w http.ResponseWriter) {
+func (r *JsonSuccess) Respond(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	serialized, err := json.Marshal(r.Result)
+	serialized, err := json.Marshal(r.Data)
 	if err != nil {
-		r.Log("error while trying to serialize a response", err, r.Result)
+		r.Log("error while trying to serialize a response", err, r.Data)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(r.Status)
 
 	if bytes.Equal(serialized, jsonNull) {
 		return
@@ -47,11 +41,11 @@ func (r JsonSuccess) Respond(w http.ResponseWriter) {
 }
 
 type Problem struct {
-	Type   string      `json:"type"`
-	Title  string      `json:"title"`
-	Status int         `json:"status"`
-	Detail interface{} `json:"details"`
-	Log    Log         `json:"-"`
+	Type   string `json:"type"`
+	Title  string `json:"title"`
+	Status int    `json:"status"`
+	Detail string `json:"detail"`
+	Log    Log    `json:"-"`
 }
 
 func (r *Problem) Respond(w http.ResponseWriter) {
@@ -73,68 +67,22 @@ func (r *Problem) Respond(w http.ResponseWriter) {
 	}
 }
 
-func NewProblemResponse(title string, detail interface{}) *Problem {
-	if errs, ok := detail.([]error); ok {
-		detail = errorSliceToStringSlice(errs)
+func NewSuccessResponse(status int, result interface{}) *JsonSuccess {
+	return &JsonSuccess{
+		Status: status,
+		Data:   result,
+		Log:    logError,
 	}
+}
 
+func NewProblemResponse(typ, title string, status int, detail string) *Problem {
 	return &Problem{
-		Type:   "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+		Type:   typ,
 		Title:  title,
-		Status: http.StatusBadRequest,
+		Status: status,
 		Detail: detail,
 		Log:    logError,
 	}
-}
-
-func NewNotFoundResponse(detail string) *Problem {
-	return &Problem{
-		Type:   "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-		Title:  "Not Found",
-		Status: http.StatusNotFound,
-		Detail: detail,
-		Log:    logError,
-	}
-}
-
-func NewUnauthorizedResponse(detail string) *Problem {
-	return &Problem{
-		Type:   "https://tools.ietf.org/html/rfc7235#section-3.1",
-		Title:  "Unauthorized",
-		Status: http.StatusUnauthorized,
-		Detail: detail,
-		Log:    logError,
-	}
-}
-
-func NewForbiddenResponse(detail string) *Problem {
-	return &Problem{
-		Type:   "https://tools.ietf.org/html/rfc7231#section-6.5.3",
-		Title:  "Forbidden",
-		Status: http.StatusForbidden,
-		Detail: detail,
-		Log:    logError,
-	}
-}
-
-func NewInternalError() *Problem {
-	return &Problem{
-		Type:   "https://tools.ietf.org/html/rfc7231#section-6.6.1",
-		Title:  "Internal Server Error",
-		Status: http.StatusInternalServerError,
-		Detail: nil,
-		Log:    logError,
-	}
-}
-
-func errorSliceToStringSlice(data []error) []string {
-	ss := make([]string, 0, len(data))
-
-	for _, e := range data {
-		ss = append(ss, e.Error())
-	}
-
-	return ss
 }
 
 type Log func(title string, err error, additional interface{})
