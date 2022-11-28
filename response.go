@@ -1,41 +1,40 @@
-package http_json_response
+package httpjsonresponse
 
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
-
-	log "github.com/sirupsen/logrus"
 )
 
-var jsonNull = []byte("null")
-
-type JsonSuccess struct {
+type Success struct {
 	Status int
 	Data   interface{}
 	Log    Log
 }
 
-func (r *JsonSuccess) Respond(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+func (r *Success) Respond(writer http.ResponseWriter) {
+	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	serialized, err := json.Marshal(r.Data)
 	if err != nil {
 		r.Log("error while trying to serialize a response", err, r.Data)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusInternalServerError)
+		writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		writer.WriteHeader(http.StatusInternalServerError)
+
 		return
 	}
 
-	w.WriteHeader(r.Status)
+	writer.WriteHeader(r.Status)
 
-	if bytes.Equal(serialized, jsonNull) {
+	if bytes.Equal(serialized, []byte("null")) {
 		return
 	}
 
-	if _, err := w.Write(serialized); err != nil {
+	if _, err := writer.Write(serialized); err != nil {
 		r.Log("error while trying to write json response body", err, string(serialized))
-		w.WriteHeader(http.StatusInternalServerError)
+		writer.WriteHeader(http.StatusInternalServerError)
+
 		return
 	}
 }
@@ -48,27 +47,29 @@ type Problem struct {
 	Log    Log    `json:"-"`
 }
 
-func (r *Problem) Respond(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/problem+json; charset=utf-8")
+func (r *Problem) Respond(writer http.ResponseWriter) {
+	writer.Header().Set("Content-Type", "application/problem+json; charset=utf-8")
 
 	serialized, err := json.Marshal(r)
 	if err != nil {
 		r.Log("error while trying to serialize a Problem response", err, r)
-		w.WriteHeader(http.StatusInternalServerError)
+		writer.WriteHeader(http.StatusInternalServerError)
+
 		return
 	}
 
-	w.WriteHeader(r.Status)
+	writer.WriteHeader(r.Status)
 
-	if _, err := w.Write(serialized); err != nil {
+	if _, err := writer.Write(serialized); err != nil {
 		r.Log("error while trying to write Problem response body", err, string(serialized))
-		w.WriteHeader(http.StatusInternalServerError)
+		writer.WriteHeader(http.StatusInternalServerError)
+
 		return
 	}
 }
 
-func NewSuccessResponse(status int, result interface{}) *JsonSuccess {
-	return &JsonSuccess{
+func NewSuccessResponse(status int, result interface{}) *Success {
+	return &Success{
 		Status: status,
 		Data:   result,
 		Log:    logError,
@@ -88,5 +89,5 @@ func NewProblemResponse(typ, title string, status int, detail string) *Problem {
 type Log func(title string, err error, additional interface{})
 
 func logError(title string, err error, additional interface{}) {
-	log.WithError(err).WithField("additional", additional).Error(title)
+	log.Fatalf(`%s: %s (%v)`, title, err, additional)
 }

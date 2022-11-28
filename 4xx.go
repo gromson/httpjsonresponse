@@ -1,4 +1,4 @@
-package http_json_response
+package httpjsonresponse
 
 import "net/http"
 
