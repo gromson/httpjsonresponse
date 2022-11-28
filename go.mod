@@ -1,3 +1,3 @@
-module github.com/gromson/httpjsonresponse/v2
+module github.com/gromson/httpjsonresponse
 
 go 1.14
